@@ -8,6 +8,7 @@
 `define ADVANCE_COUNTER_DECREMENT	'b01
 `define ADVANCE_COUNTER_SET			'b10
 
+//A counter that suports decrementing, setting, and no change moded
 module AdvanceDownCounter(clk, amount, mode, data, underflow);
 	parameter n = 8;
 	input clk;
@@ -49,6 +50,7 @@ endmodule
 `define CONTROLLER_CHECK	'b0100
 `define CONTROLLER_FIRE		'b1000
 
+//The main control state machine.
 module Controller(trigger, refill, enough, kill, clk, f, e, t);
 	input trigger;
 	input refill;
@@ -147,6 +149,7 @@ module Controller(trigger, refill, enough, kill, clk, f, e, t);
 	
 endmodule
 
+//This module will check if each resource has enough to preform the wanted fire
 module SufficientResourceChecker(current_f,current_t,current_e, current_targets,needed_f,needed_t,needed_e, needed_targets, clk, enough_f, enough_t, enough_e, target_equals);
 	input [4:0]current_f;
 	input [8:0]current_e;
@@ -192,6 +195,7 @@ endmodule
 `define FIRE_MODE_RAPID		'b100
 `define FIRE_MODE_TRACER	'b101
 
+//This module calculates the required resources for the current mode
 module ResourceCalculator(mode, num_t, fluid, tracer, energy, targets);
 	input [2:0] mode;
 	input [4:0]num_t;
@@ -255,6 +259,7 @@ module ResourceCalculator(mode, num_t, fluid, tracer, energy, targets);
 	
 endmodule
 
+//A simple 2:1 mux
 module Mux2_1(a,b,s,o);
 	parameter n = 1;
 	
@@ -274,12 +279,14 @@ module Mux2_1(a,b,s,o);
 	end
 endmodule
 
+//This module connects to the set/dec mux connected to the fluid counter
 module IsSetFluid(in, out);
 	input [1:0] in;
 	output out;
 	assign out = in==`ADVANCE_COUNTER_SET;
 endmodule
 
+//This module checks if energy has run out, and generates the kill signal
 module KillChecker(energy_amount,kill);
 	input [8:0]energy_amount;
 	output kill;
@@ -293,6 +300,7 @@ module KillChecker(energy_amount,kill);
 	end
 endmodule
 
+//This is a display module, containing tasks for displaying resources and failures
 module ResourceOutDisplay(e,f,t,e_e,f_e,t_e);
 	input e_e;
 	input f_e;
@@ -323,6 +331,8 @@ module ResourceOutDisplay(e,f,t,e_e,f_e,t_e);
 	endtask
 endmodule
 
+
+//This is the main component, holding every piece of the system
 module WebShooter(trigger, refill, fire_mode, not_enough, target_cnt, shoot, clk);
 	input trigger;
 	input refill;
@@ -381,8 +391,8 @@ module WebShooter(trigger, refill, fire_mode, not_enough, target_cnt, shoot, clk
 	
 endmodule
 
-`define DISPLAY_ALL $display("%4b|%2b|%2b|%2b||||%b %b %b %b|",controller.current_state,f,e,t,trigger,refill,enough,kill)
 
+//This macro attempts to show then displays the result
 `define SHOOT\
 $display("--------------------------------");\
 #60\
@@ -395,6 +405,9 @@ web_shooter.enough_disp.display_res;\
 trigger = 0;\
 $display("--------------------------------");\
 #60
+
+
+//This macro refills and displays info
 `define RF\
 $display("Refilling");\
 #60\
@@ -450,7 +463,7 @@ module TestBench;
 		$display("Setting fire mode to Ricochet");
 		fire_mode = `FIRE_MODE_RICOCHET;
 		`SHOOT
-		`SHOOT
+		`SHOOT 
 		$display("Setting fire mode to Splitter");
 		fire_mode = `FIRE_MODE_SPLITTER;
 		$display("Targeting 4 things");
