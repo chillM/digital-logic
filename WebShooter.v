@@ -293,36 +293,35 @@ module KillChecker(energy_amount,kill);
 	end
 endmodule
 
-module ResourceOutDisplay(e_e,f_e,t_e);
+module ResourceOutDisplay(e,f,t,e_e,f_e,t_e);
 	input e_e;
 	input f_e;
 	input t_e;
-	task display_e;
+	input [8:0] e;
+	input [6:0] t;
+	input [4:0] f;
+	task display_fail;
 		begin
 			if(!e_e)
 			begin
-				$display("Not enough energy %d!", e_e);
+				$display("Not enough energy!");
 			end
-		end
-	endtask
-	task display_f;
-		begin
 			if(!f_e)
 			begin
-				$display("Not enough fluid %d!", f_e);
+				$display("Not enough fluid!");
+			end
+			if(!t_e)
+			begin
+				$display("Not enough tracer!");
 			end
 		end
 	endtask
-	task display_t;
+	task display_res;
 		begin
-			if(!t_e)
-			begin
-				$display("Not enough tracer! %d", t_e);
-			end
+			$display("Resources: %3d E| %2d F| %2d T", e,f,t);
 		end
 	endtask
 endmodule
-
 
 module WebShooter(trigger, refill, fire_mode, not_enough, target_cnt, shoot, clk);
 	input trigger;
@@ -331,7 +330,7 @@ module WebShooter(trigger, refill, fire_mode, not_enough, target_cnt, shoot, clk
 	input [4:0] target_cnt;
 	input clk;
 	output shoot;
-	reg shoot;
+	wire shoot;
 	output not_enough;
 	
 	
@@ -361,7 +360,7 @@ module WebShooter(trigger, refill, fire_mode, not_enough, target_cnt, shoot, clk
 	wire [8:0] amount_of_energy;
 	wire [4:0] target_from_rc;
 	
-	ResourceOutDisplay enough_disp(enough_e, enough_f, enough_t);
+	ResourceOutDisplay enough_disp(amount_of_energy,amount_of_fluid,amount_of_tracer, enough_e, enough_f, enough_t);
 	Controller controller(trigger, refill, enough_line, kill_line, clk, f_mode_line, e_mode_line, t_mode_line);
 	IsSetFluid is_set_fluid(f_mode_line, to_fluid_mux_set);
 	Mux2_1 #(5) fluid_mux(decrement_amount_fluid, REFILL_AMOUNT, to_fluid_mux_set, to_fluid_amount); 
@@ -372,6 +371,7 @@ module WebShooter(trigger, refill, fire_mode, not_enough, target_cnt, shoot, clk
 	SufficientResourceChecker sufficient_resource_checker(amount_of_fluid, amount_of_tracer, amount_of_energy, target_from_rc,decrement_amount_fluid, decrement_amount_tracer, decrement_amount_energy, target_cnt,clk,enough_f, enough_t, enough_e, target_equal); 
 	KillChecker kill_checker(amount_of_energy, kill_line);
 	
+	assign shoot = enough_line;
 	assign enough_line = enough_e && enough_f && enough_t && target_equal;
 	assign not_enough = fluid_underflow || energy_underflow || tracer_underflow;
 	
@@ -384,20 +384,25 @@ endmodule
 `define DISPLAY_ALL $display("%4b|%2b|%2b|%2b||||%b %b %b %b|",controller.current_state,f,e,t,trigger,refill,enough,kill)
 
 `define SHOOT\
+$display("--------------------------------");\
 #60\
 trigger = 1;\
+$display("Shooting...");\
+if(shoot) $display("PEW!!! [||]=< ~~~~~~#");\
+web_shooter.enough_disp.display_fail;\
 #60\
-web_shooter.enough_disp.display_e;\
-web_shooter.enough_disp.display_f;\
-web_shooter.enough_disp.display_t;\
+web_shooter.enough_disp.display_res;\
 trigger = 0;\
+$display("--------------------------------");\
 #60
 `define RF\
+$display("Refilling");\
 #60\
 refill = 1;\
 #60\
-refill = 0;
-
+refill = 0;\
+web_shooter.enough_disp.display_res;\
+#60
 
 
 module TestBench;
@@ -430,20 +435,81 @@ module TestBench;
 		refill = 0;
 		fire_mode = `FIRE_MODE_SWING;
 		target_amount = 1;
-		web_shooter.fluid_counter.data = 16;
-		web_shooter.tracer_counter.data = 1;
-		web_shooter.energy_counter.data = 256;
+		web_shooter.fluid_counter.data = 16;//initialize the fluid 
+		web_shooter.tracer_counter.data = 64;//initialize the tracer
+		web_shooter.energy_counter.data = 256;//initialize the energy
 		web_shooter.controller.current_state = `CONTROLLER_WAITING;
 		#20
-		$display("I have %d %d %d", web_shooter.fluid_counter.data,web_shooter.energy_counter.data,web_shooter.tracer_counter.data);
-		$display("Setting fire mode to Splitter");
-		fire_mode = `FIRE_MODE_TRACER;
+		web_shooter.enough_disp.display_res;
+		$display("Setting fire mode to Swing");
+		fire_mode = `FIRE_MODE_SWING;
 		target_amount = 1;
 		`SHOOT
-		$display("I have %d %d %d   %d", web_shooter.fluid_counter.data,web_shooter.energy_counter.data,web_shooter.tracer_counter.data, web_shooter.resource_calculator.tracer);
+		`SHOOT
+		`SHOOT
+		$display("Setting fire mode to Ricochet");
+		fire_mode = `FIRE_MODE_RICOCHET;
+		`SHOOT
+		`SHOOT
+		$display("Setting fire mode to Splitter");
+		fire_mode = `FIRE_MODE_SPLITTER;
+		$display("Targeting 4 things");
+		target_amount = 4;
+		`SHOOT
+		$display("Targeting 8 things");
+		target_amount = 8;
+		`SHOOT
+		$display("Targeting 6 things");
+		target_amount = 7;
+		`SHOOT
+		`RF
+		$display("Targeting 1 thing");
+		target_amount = 1;
+		$display("Setting fire mode to Grenade");
+		fire_mode = `FIRE_MODE_GRENADE;
+		`SHOOT
+		`SHOOT
+		`RF
+		$display("Setting fire mode to Taser");
+		fire_mode = `FIRE_MODE_TASER;
+		`SHOOT
+		`SHOOT
+		`SHOOT
+		`SHOOT
+		`SHOOT
+		`SHOOT
+		`SHOOT
+		$display("Setting fire mode to Rapid");
+		fire_mode = `FIRE_MODE_RAPID;
+		`RF
+		`SHOOT
+		`SHOOT
+		`SHOOT
+		$display("Setting fire mode to Tracer");
+		fire_mode = `FIRE_MODE_TRACER;
+		`SHOOT
+		`SHOOT
+		`SHOOT 
 		
-		$display("Dropp off");
+		$display("Setting fire mode to Grenade");
+		fire_mode = `FIRE_MODE_GRENADE;
+		`RF
+		while(shoot) begin
+			`SHOOT;
+			`RF;
+		end
+		$display("Setting fire mode to Rapid");
+		fire_mode = `FIRE_MODE_RAPID;
+		`SHOOT
+		`SHOOT
+		`SHOOT
 		
+		
+
+		
+		
+		
+		$display("Drop off");//If the program does not terminate naturaly
 		$finish;
     end
 	
