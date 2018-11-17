@@ -392,7 +392,7 @@ module WebShooter(trigger, refill, fire_mode, not_enough, target_cnt, shoot, clk
 endmodule
 
 
-//This macro attempts to show then displays the result
+//This macro attempts to shot then displays the result
 `define SHOOT\
 $display("--------------------------------");\
 #60\
