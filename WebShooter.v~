@@ -1,3 +1,4 @@
+
 `define WEBFLUID_STANDBY 2'b00
 `define WEBFLUID_FAILURE_NOT_ENOUGH 2'b01
 `define WEBFLUID_FAILURE_EMPTY 2'b10
@@ -66,10 +67,8 @@ module Controller(trigger, refill, enough, kill, clk, f, e, t);
 	
 	reg [3:0] current_state;
 	reg [3:0] temp_state;
-	reg [3:0] prev_state;
 	
-	task changeStateFromWaiting; begin
-		prev_state = `CONTROLLER_WAITING;
+	task changeStateFromWaiting;
 		if(!trigger && refill) begin
 			temp_state = `CONTROLLER_REFILL;
 			f = `ADVANCE_COUNTER_SET;
@@ -85,19 +84,15 @@ module Controller(trigger, refill, enough, kill, clk, f, e, t);
 		else begin
 			temp_state = current_state;
 		end
-	end
 	endtask
 	
-	task changeStateFromRefill; begin
-		prev_state = `CONTROLLER_REFILL;
+	task changeStateFromRefill;
 		if(!refill)
 			temp_state = `CONTROLLER_WAITING;
 		else temp_state = current_state;
-	end
 	endtask
 	
-	task changeStateFromCheck; begin
-		prev_state = `CONTROLLER_CHECK;
+	task changeStateFromCheck;
 		if(enough) begin
 			temp_state = `CONTROLLER_FIRE;
 			f = `ADVANCE_COUNTER_DECREMENT;
@@ -110,11 +105,9 @@ module Controller(trigger, refill, enough, kill, clk, f, e, t);
 			e = `ADVANCE_COUNTER_NO_CHANGE;
 			t = `ADVANCE_COUNTER_NO_CHANGE;
 		end
-	end
 	endtask
 	
-	task changeStateFromFire; begin
-		prev_state = `CONTROLLER_FIRE;
+	task changeStateFromFire;
 		if(kill) begin
 			//$display("%b", kill);
 			temp_state = `CONTROLLER_DEAD;
@@ -135,7 +128,6 @@ module Controller(trigger, refill, enough, kill, clk, f, e, t);
 			e = `ADVANCE_COUNTER_NO_CHANGE;
 			t = `ADVANCE_COUNTER_NO_CHANGE;
 		end
-	end
 	endtask
 	
 	always @(posedge clk) begin
@@ -265,8 +257,6 @@ module ResourceCalculator(mode, num_t, fluid, tracer, energy, targets);
 		endcase
 	end
 	
-
-	
 endmodule
 
 //A simple 2:1 mux
@@ -349,8 +339,8 @@ module WebShooter(trigger, refill, fire_mode, not_enough, target_cnt, shoot, clk
 	input [2:0] fire_mode;
 	input [4:0] target_cnt;
 	input clk;
-	output [2:0]shoot;
-	reg [2:0] shoot;
+	output shoot;
+	wire shoot;
 	output not_enough;
 	
 	
@@ -391,18 +381,9 @@ module WebShooter(trigger, refill, fire_mode, not_enough, target_cnt, shoot, clk
 	SufficientResourceChecker sufficient_resource_checker(amount_of_fluid, amount_of_tracer, amount_of_energy, target_from_rc,decrement_amount_fluid, decrement_amount_tracer, decrement_amount_energy, target_cnt,clk,enough_f, enough_t, enough_e, target_equal); 
 	KillChecker kill_checker(amount_of_energy, kill_line);
 	
+	assign shoot = enough_line;
 	assign enough_line = enough_e && enough_f && enough_t && target_equal;
 	assign not_enough = fluid_underflow || energy_underflow || tracer_underflow;
-	
-	initial begin
-		shoot = 0;
-		#2
-		forever begin
-			#10
-			if(controller.current_state == `CONTROLLER_FIRE && controller.prev_state != `CONTROLLER_FIRE)
-				shoot = shoot + 1;
-		end
-	end
 	
 	
 	//assign enough_line = 1;
@@ -444,9 +425,11 @@ module TestBench;
 	reg refill;
 	reg [2:0] fire_mode;
 	reg [4:0] target_amount;
+	reg [32:0] in;
 	
 	wire not_enough;
-	wire [2:0]shoot;
+	wire shoot;
+	reg [31:0] data[4:0];
 	
 	WebShooter web_shooter(trigger, refill, fire_mode, not_enough, target_amount, shoot, clk);
 
@@ -455,13 +438,8 @@ module TestBench;
 		#2
 		forever
 			begin
-				#5 clk = 0 ;//Clock Low
-				$realTimeDelay(50);
-				$getUserInput(fire_mode, trigger, refill,target_amount);
-				$display("%d %d %d %2d %2d",fire_mode, trigger, refill,target_amount, web_shooter.shoot);
+				#5 clk = 0 ;//Clock Low		
 				#5 clk = 1 ;//Clock High
-				web_shooter.enough_disp.display_res;
-				$display("Mode %3b", web_shooter.controller.current_state);
 				//$display("Enough %b", en);
 				//`DISPLAY_ALL;
 			end
@@ -471,13 +449,17 @@ module TestBench;
 		trigger = 0;
 		refill = 0;
 		fire_mode = `FIRE_MODE_SWING;
-		target_amount = 1;
+		/*target_amount = 1;
 		web_shooter.fluid_counter.data = 16;//initialize the fluid 
 		web_shooter.tracer_counter.data = 64;//initialize the tracer
 		web_shooter.energy_counter.data = 256;//initialize the energy
 		web_shooter.controller.current_state = `CONTROLLER_WAITING;
-		`RF;
-		/*`SHOOT
+		#20
+		web_shooter.enough_disp.display_res;
+		$display("Setting fire mode to Swing");
+		fire_mode = `FIRE_MODE_SWING;
+		target_amount = 1;
+		`SHOOT
 		`SHOOT
 		`SHOOT
 		$display("Setting fire mode to Ricochet");
@@ -543,10 +525,22 @@ module TestBench;
 		
 		
 		$display("Drop off");//If the program does not terminate naturaly
-		$finish;
-		*/
+		$finish;*/
     end
+    
+    initial begin
+    	in = 60;
+    	$startup;
+    	$hello;
+    	$hello;
+    	$gv(in);
+    	$display("%d", in);
+    end
+    
+    
+    
 	
 endmodule
+
 
 
