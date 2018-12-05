@@ -204,7 +204,7 @@ int main()
 				button_message.mode = FIRE_MODES[fire_mode];
 				button_message.targets = target_amount;
 				memcpy(1 + buffer, &button_message, sizeof(ButtonMessage));
-				sendto(sockfd, buffer, 1 + sizeof(ButtonMessage), MSG_CONFIRM, (const struct sockaddr *) &servaddr, slen);
+				sendto(sockfd, buffer, 1 + sizeof(ButtonMessage), 0, (const struct sockaddr *) &servaddr, slen);
 				usleep(100000);
 			}
 		}

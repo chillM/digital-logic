@@ -20,14 +20,29 @@
 #define SERVER_PORT 1182
 #define SERVER_BUFFER_SIZE 2048
 #define PACKET_TYPE_INPUT 1
+#define PACKET_TYPE_DISPLAY 2
 
 uint8_t mode_value;
 uint8_t trigger_value;
 uint8_t refill_value;
 uint8_t target_value;
 
+uint8_t fluid_value;
+uint8_t tracer_value;
+uint16_t energy_value;
+uint8_t shoot_value;
+
 pthread_mutex_t* button_mutex = NULL;
 
+typedef struct
+{
+	uint8_t fluid;
+	uint16_t energy;
+	uint8_t tracer;
+	uint8_t shoot;
+	uint8_t mode;
+	uint8_t targets;
+}DisplayMessage;
 
 
 typedef struct
@@ -38,11 +53,33 @@ typedef struct
 	uint8_t targets;
 }ButtonMessage;
 
-void* inputThread(void* param)
+static int setDisplayInit(char*user_data)
 {
-	
+	return 0;
 }
 
+static int setDisplay(char* user_data)
+{
+	pthread_mutex_lock(button_mutex);
+	fluid_value = tf_getp(1);
+	energy_value = tf_getp(2);
+	tracer_value = tf_getp(3);
+	pthread_mutex_unlock(button_mutex);
+}
+
+void setDisplayRegister()
+{
+      s_vpi_systf_data tf_data;
+
+      tf_data.type      = vpiSysTask;
+      tf_data.tfname    = "$setDisplay";
+      tf_data.calltf    = setDisplay;
+      tf_data.compiletf = setDisplayInit;
+      tf_data.sizetf    = 0;
+      tf_data.user_data = 0;
+      vpi_register_systf(&tf_data);
+}
+	
 static int realTimeDelayInit(char*user_data)
 {
 	return 0;
@@ -106,12 +143,17 @@ void getUserInputRegister()
 
 void* networkThread(void* param)
 {
+	fluid_value = 64;
+	const char* server_name = "localhost";
+	char hello[] = "Hi";
 	ButtonMessage button_message;
+	DisplayMessage display_message;
 	uint32_t i;
 	uint32_t rx_length;
 	int sockfd; 
     char buffer[SERVER_BUFFER_SIZE];
-	struct sockaddr_in servaddr, cliaddr;
+	struct sockaddr_in servaddr;
+	struct  sockaddr_in cliaddr;
 	vpi_printf("Starting server...\n"); 
 	const socklen_t slen = sizeof(struct sockaddr_in);
 	
@@ -126,8 +168,8 @@ void* networkThread(void* param)
       
     // Filling server information 
     servaddr.sin_family    = AF_INET; // IPv4 
-    servaddr.sin_addr.s_addr = INADDR_ANY; 
-    servaddr.sin_port = htons(SERVER_PORT); 
+    inet_pton(AF_INET, server_name, &servaddr.sin_addr); 
+    servaddr.sin_port = htons(SERVER_PORT);
       
     // Bind the socket with the server address 
     if ( bind(sockfd, (const struct sockaddr *)&servaddr,  
@@ -138,10 +180,11 @@ void* networkThread(void* param)
     } 
 	
 	vpi_printf("Socket Created. Server is up!\n");
-	
+	int len = sizeof(cliaddr);
 	for(i = 0;; i++)
 	{
-		rx_length = recvfrom(sockfd, buffer, SERVER_BUFFER_SIZE, SERVER_BUFFER_SIZE, &cliaddr, slen);
+		rx_length = recvfrom(sockfd, buffer, SERVER_BUFFER_SIZE, 0,( struct sockaddr *) &cliaddr, 
+                &len);
 		//vpi_printf("Got data! %d\n", buffer[0]);
 		if(buffer[0] == PACKET_TYPE_INPUT)
 		{
@@ -154,6 +197,25 @@ void* networkThread(void* param)
 			refill_value = button_message.refill;
 			target_value = button_message.targets;
 			pthread_mutex_unlock(button_mutex);
+			//vpi_printf("%x %s\n", cliaddr.sin_port, inet_ntoa(cliaddr.sin_addr));
+		}
+		else if(buffer[0] == PACKET_TYPE_DISPLAY)
+		{
+			fluid_value++;
+			//vpi_printf("POOOOOOOOOOOOOOP\n");
+			pthread_mutex_lock(button_mutex);
+			display_message.fluid = fluid_value;
+			display_message.energy = energy_value;
+			display_message.tracer = tracer_value;
+			display_message.shoot = shoot_value;
+			display_message.mode = mode_value;
+			display_message.targets = target_value;
+			memcpy(buffer, &display_message, sizeof(DisplayMessage));
+			pthread_mutex_unlock(button_mutex);
+			//vpi_printf("%x %s\n", cliaddr.sin_port, inet_ntoa(cliaddr.sin_addr));
+			usleep(30);
+			len = sendto(sockfd, buffer,sizeof(DisplayMessage), 0, (const struct sockaddr *) &cliaddr, sizeof(cliaddr));
+			//vpi_printf("FFFF %d\n", len);
 		}
 		usleep(10);
 		
@@ -266,6 +328,7 @@ void (*vlog_startup_routines[])() = {
     get_register,
 	getUserInputRegister,
 	realTimeDelayRegister,
+	setDisplayRegister,
     0
 };
 
