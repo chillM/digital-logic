@@ -462,7 +462,7 @@ module TestBench;
 				#5 clk = 1 ;//Clock High
 				web_shooter.enough_disp.display_res;
 				$display("Mode %3b", web_shooter.controller.current_state);
-				$setDisplay(web_shooter.fluid_counter.data, web_shooter.energy_counter.data, web_shooter.tracer_counter.data);
+				$setDisplay(web_shooter.fluid_counter.data, web_shooter.energy_counter.data, web_shooter.tracer_counter.data, shoot);
 				//$display("Enough %b", en);
 				//`DISPLAY_ALL;
 			end
@@ -477,7 +477,6 @@ module TestBench;
 		web_shooter.tracer_counter.data = 64;//initialize the tracer
 		web_shooter.energy_counter.data = 256;//initialize the energy
 		web_shooter.controller.current_state = `CONTROLLER_WAITING;
-		`RF;
 		/*`SHOOT
 		`SHOOT
 		`SHOOT

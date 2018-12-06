@@ -64,6 +64,7 @@ static int setDisplay(char* user_data)
 	fluid_value = tf_getp(1);
 	energy_value = tf_getp(2);
 	tracer_value = tf_getp(3);
+	shoot_value = tf_getp(4);
 	pthread_mutex_unlock(button_mutex);
 }
 
@@ -122,7 +123,6 @@ static int getUserInput(char*user_data)
 		tf_putp(4,(int)target_value);
 		pthread_mutex_unlock(button_mutex);
 	}
-	//vpi_printf("BOOOOP\n");
 }
 
 
